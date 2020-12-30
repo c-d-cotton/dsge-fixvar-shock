@@ -1,55 +1,9 @@
 #!/usr/bin/env python3
-# PYTHON_PREAMBLE_START_STANDARD:{{{
-
-# Christopher David Cotton (c)
-# http://www.cdcotton.com
-
-# modules needed for preamble
-import importlib
 import os
 from pathlib import Path
 import sys
 
-# Get full real filename
-__fullrealfile__ = os.path.abspath(__file__)
-
-# Function to get git directory containing this file
-def getprojectdir(filename):
-    curlevel = filename
-    while curlevel is not '/':
-        curlevel = os.path.dirname(curlevel)
-        if os.path.exists(curlevel + '/.git/'):
-            return(curlevel + '/')
-    return(None)
-
-# Directory of project
-__projectdir__ = Path(getprojectdir(__fullrealfile__))
-
-# Function to call functions from files by their absolute path.
-# Imports modules if they've not already been imported
-# First argument is filename, second is function name, third is dictionary containing loaded modules.
-modulesdict = {}
-def importattr(modulefilename, func, modulesdict = modulesdict):
-    # get modulefilename as string to prevent problems in <= python3.5 with pathlib -> os
-    modulefilename = str(modulefilename)
-    # if function in this file
-    if modulefilename == __fullrealfile__:
-        return(eval(func))
-    else:
-        # add file to moduledict if not there already
-        if modulefilename not in modulesdict:
-            # check filename exists
-            if not os.path.isfile(modulefilename):
-                raise Exception('Module not exists: ' + modulefilename + '. Function: ' + func + '. Filename called from: ' + __fullrealfile__ + '.')
-            # add directory to path
-            sys.path.append(os.path.dirname(modulefilename))
-            # actually add module to moduledict
-            modulesdict[modulefilename] = importlib.import_module(''.join(os.path.basename(modulefilename).split('.')[: -1]))
-
-        # get the actual function from the file and return it
-        return(getattr(modulesdict[modulefilename], func))
-
-# PYTHON_PREAMBLE_END:}}}
+__projectdir__ = Path(os.path.dirname(os.path.realpath(__file__)) + '/')
 
 def getshocks_fixvar(inputdict, varfgvec, varfgname, shockname, irfperiods = None, pltshow = True, pltsavename = None, postshockperiods = 10):
     """
@@ -139,7 +93,9 @@ def getshocks_fixvar(inputdict, varfgvec, varfgname, shockname, irfperiods = Non
     # generate irf
     if irfperiods is None:
         irfperiods = numshockperiods + postshockperiods
-    XY = importattr(__projectdir__ / Path('submodules/dsge-perturbation/dsge_bkdiscrete_func.py'), 'irmatrix')(inputdict['gx'], inputdict['hx'], X0, T = irfperiods)
+    sys.path.append(str(__projectdir__ / Path('submodules/dsge-perturbation/')))
+    from dsge_bkdiscrete_func import irmatrix
+    XY = irmatrix(inputdict['gx'], inputdict['hx'], X0, T = irfperiods)
     irfvars = [inputdict['stateshockcontrolposdict'][varname] for varname in inputdict['mainvars']]
     irfnames = inputdict['mainvarnames']
     XY2 = XY[:, irfvars]
@@ -149,7 +105,9 @@ def getshocks_fixvar(inputdict, varfgvec, varfgname, shockname, irfperiods = Non
     # this gives me the option to not save the plot even if I specify a savefolder in inputdict
     if pltsavename is False:
         pltsavename = None
-    importattr(__projectdir__ / Path('submodules/python-math-func/statespace/statespace_func.py'), 'irgraphs')(XY2, names = irfnames, pltshow = pltshow, pltsavename = pltsavename)
+    sys.path.append(str(__projectdir__ / Path('submodules/python-math-func/statespace')))
+    from statespace_func import irgraphs
+    irgraphs(XY2, names = irfnames, pltshow = pltshow, pltsavename = pltsavename)
 
     return(uivec)
 
